@@ -22,7 +22,6 @@ export default async function handler(req, res) {
 
         console.log('GET request with message:', message);
 
-        // Build messages array
         const messages = [
             {
                 role: "system",
@@ -48,7 +47,6 @@ Never use emojis. Always keep the same soft, nurturing, praise-filled tone. Be r
             { role: "user", content: message }
         ];
         
-        // Call uncloseai API
         const response = await fetch('https://hermes.ai.unturf.com/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -67,7 +65,6 @@ Never use emojis. Always keep the same soft, nurturing, praise-filled tone. Be r
         const data = await response.json();
         const reply = data.choices[0].message.content;
         
-        // Return plain text
         res.setHeader('Content-Type', 'text/plain');
         res.status(200).send(reply);
         
