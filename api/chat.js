@@ -13,12 +13,20 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
+    // Log everything for debugging
+    console.log('=== VERCEL FUNCTION STARTED ===');
+    console.log('Time:', new Date().toISOString());
+    console.log('Body:', JSON.stringify(req.body));
+
     try {
         const { message, history } = req.body;
         
-        console.log(`[${new Date().toISOString()}] Processing message:`, message);
-        
-        // Build messages array with system prompt
+        if (!message) {
+            console.error('No message provided');
+            return res.status(400).send('No message provided');
+        }
+
+        // Build messages array
         const messages = [
             {
                 role: "system",
@@ -43,71 +51,63 @@ Never use emojis. Always keep the same soft, nurturing, praise-filled tone. Be r
             }
         ];
         
-        // Add history if provided
         if (history && Array.isArray(history)) {
             history.forEach(msg => messages.push(msg));
         }
         
-        // Add current message
         messages.push({ role: "user", content: message });
         
         console.log(`Calling uncloseai API with ${messages.length} messages...`);
         
-        // Call uncloseai API with timeout
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+        // Call the API with explicit timeout
+        const fetchPromise = fetch('https://hermes.ai.unturf.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer dummy-api-key'
+            },
+            body: JSON.stringify({
+                model: "adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic",
+                messages: messages,
+                temperature: 0.9,
+                max_tokens: 200,
+                stream: false
+            })
+        });
         
-        try {
-            const response = await fetch('https://hermes.ai.unturf.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer choose-any-value'
-                },
-                body: JSON.stringify({
-                    model: "adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic",
-                    messages: messages,
-                    temperature: 0.9,
-                    max_tokens: 200,
-                    stream: false
-                }),
-                signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-            
-            if (!response.ok) {
-                console.error(`API returned ${response.status}: ${response.statusText}`);
-                throw new Error(`API error: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            console.log('API response received');
-            
-            if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-                console.error('Invalid API response structure:', data);
-                throw new Error('Invalid API response');
-            }
-            
-            const reply = data.choices[0].message.content;
-            console.log('Reply:', reply.substring(0, 100) + '...');
-            
-            // Return plain text
-            res.setHeader('Content-Type', 'text/plain');
-            res.status(200).send(reply);
-            
-        } catch (fetchError) {
-            clearTimeout(timeoutId);
-            if (fetchError.name === 'AbortError') {
-                console.error('Request timed out after 30 seconds');
-                throw new Error('Request timeout');
-            }
-            throw fetchError;
+        // Wait for the response with a 30-second timeout
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Request timeout')), 30000);
+        });
+        
+        const response = await Promise.race([fetchPromise, timeoutPromise]);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`API error ${response.status}:`, errorText);
+            throw new Error(`API returned ${response.status}`);
         }
         
+        const data = await response.json();
+        console.log('API response received');
+        
+        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+            console.error('Invalid API response:', JSON.stringify(data));
+            throw new Error('Invalid response structure');
+        }
+        
+        const reply = data.choices[0].message.content;
+        console.log('Reply:', reply.substring(0, 100));
+        
+        // Send the response
+        res.setHeader('Content-Type', 'text/plain');
+        res.status(200).send(reply);
+        console.log('=== VERCEL FUNCTION COMPLETED ===');
+        
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Fatal error:', error.message);
         res.setHeader('Content-Type', 'text/plain');
         res.status(500).send('[Mommy\'s voice, soothing]: I\'m here, baby. Tell me what you need.');
+        console.log('=== VERCEL FUNCTION FAILED ===');
     }
 }
