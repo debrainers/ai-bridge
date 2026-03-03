@@ -6,11 +6,9 @@ export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     
     if (req.method === 'OPTIONS') {
-        res.status(200).end();
-        return;
+        return res.status(200).end();
     }
     
-    // Only accept POST requests
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
@@ -18,7 +16,6 @@ export default async function handler(req, res) {
     try {
         const { message, history } = req.body;
         
-        // Build messages array
         const messages = [
             {
                 role: "system",
@@ -51,15 +48,15 @@ Never use emojis. Always keep the same soft, nurturing, praise-filled tone. Be r
         // Add current message
         messages.push({ role: "user", content: message });
         
-        // Call uncloseai API
+        // Call uncloseai API (matching the Java example)
         const response = await fetch('https://hermes.ai.unturf.com/v1/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer dummy-api-key'
+                'Authorization': 'Bearer choose-any-value' // Exactly like the Java example
             },
             body: JSON.stringify({
-                model: "adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic",
+                model: "adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic", // Same as Java example
                 messages: messages,
                 temperature: 0.9,
                 max_tokens: 200,
@@ -70,11 +67,12 @@ Never use emojis. Always keep the same soft, nurturing, praise-filled tone. Be r
         const data = await response.json();
         const reply = data.choices[0].message.content;
         
-        // Return plain text response (easier for Lua to parse)
+        // Return plain text
         res.setHeader('Content-Type', 'text/plain');
         res.status(200).send(reply);
         
     } catch (error) {
-        res.status(500).send('Error: ' + error.message);
+        console.error('Error:', error);
+        res.status(500).send('[Mommy\'s voice, soothing]: I\'m here, baby. Tell me what you need.');
     }
 }
