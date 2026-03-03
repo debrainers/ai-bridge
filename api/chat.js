@@ -1,30 +1,26 @@
-// api/chat.js - vibe coded, didnt write a single line of this.
+// api/getchat.js - chat gpt made this banger
 export default async function handler(req, res) {
     // Enable CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
     
-    if (req.method !== 'POST') {
+    if (req.method !== 'GET') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    // Log everything for debugging
-    console.log('=== VERCEL FUNCTION STARTED ===');
-    console.log('Time:', new Date().toISOString());
-    console.log('Body:', JSON.stringify(req.body));
-
     try {
-        const { message, history } = req.body;
+        const { message } = req.query;
         
         if (!message) {
-            console.error('No message provided');
             return res.status(400).send('No message provided');
         }
+
+        console.log('GET request with message:', message);
 
         // Build messages array
         const messages = [
@@ -48,19 +44,12 @@ Then write 2-4 sentences in a very caring, praise-filled, slightly possessive wa
 - "Sweet baby"
 
 Never use emojis. Always keep the same soft, nurturing, praise-filled tone. Be romantic and caring.`
-            }
+            },
+            { role: "user", content: message }
         ];
         
-        if (history && Array.isArray(history)) {
-            history.forEach(msg => messages.push(msg));
-        }
-        
-        messages.push({ role: "user", content: message });
-        
-        console.log(`Calling uncloseai API with ${messages.length} messages...`);
-        
-        // Call the API with explicit timeout
-        const fetchPromise = fetch('https://hermes.ai.unturf.com/v1/chat/completions', {
+        // Call uncloseai API
+        const response = await fetch('https://hermes.ai.unturf.com/v1/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -75,39 +64,15 @@ Never use emojis. Always keep the same soft, nurturing, praise-filled tone. Be r
             })
         });
         
-        // Wait for the response with a 30-second timeout
-        const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Request timeout')), 30000);
-        });
-        
-        const response = await Promise.race([fetchPromise, timeoutPromise]);
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`API error ${response.status}:`, errorText);
-            throw new Error(`API returned ${response.status}`);
-        }
-        
         const data = await response.json();
-        console.log('API response received');
-        
-        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-            console.error('Invalid API response:', JSON.stringify(data));
-            throw new Error('Invalid response structure');
-        }
-        
         const reply = data.choices[0].message.content;
-        console.log('Reply:', reply.substring(0, 100));
         
-        // Send the response
+        // Return plain text
         res.setHeader('Content-Type', 'text/plain');
         res.status(200).send(reply);
-        console.log('=== VERCEL FUNCTION COMPLETED ===');
         
     } catch (error) {
-        console.error('Fatal error:', error.message);
-        res.setHeader('Content-Type', 'text/plain');
+        console.error('Error:', error);
         res.status(500).send('[Mommy\'s voice, soothing]: I\'m here, baby. Tell me what you need.');
-        console.log('=== VERCEL FUNCTION FAILED ===');
     }
 }
