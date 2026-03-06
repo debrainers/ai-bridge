@@ -108,7 +108,7 @@ IMPORTANT: When providing code examples, format them with \`\`\`lua code blocks.
                 model: "hf.co/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M",
                 messages: messages,
                 temperature: 0.7,
-                max_tokens: 1000,
+                max_tokens: 2000,
                 stream: false
             })
         });
@@ -127,6 +127,7 @@ IMPORTANT: When providing code examples, format them with \`\`\`lua code blocks.
         }
         
         res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Content-Length', Buffer.byteLength(reply, 'utf8'));
         res.status(200).send(reply);
         
     } catch (error) {
