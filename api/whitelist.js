@@ -1,4 +1,3 @@
-// api/whitelist.js
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -16,13 +15,20 @@ export default async function handler(req, res) {
         const userId = req.query.id;
         
         if (!userId) {
-            return res.status(400).send('No user ID provided');
+            return res.status(400).send('');
         }
 
+        const timestamp = Date.now();
         const base_url = "https://raw.githubusercontent.com/debrainers/buyer-access/refs/heads/main/";
-        const file_url = base_url + userId + ".lua";
+        const file_url = base_url + userId + ".lua?t=" + timestamp;
         
-        const response = await fetch(file_url);
+        const response = await fetch(file_url, {
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        });
         
         if (!response.ok) {
             return res.status(404).send('');
